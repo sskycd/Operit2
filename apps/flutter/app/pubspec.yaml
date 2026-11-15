@@ -60,8 +60,8 @@ dependencies:
   path_provider: ^2.1.5
   path_provider_ohos:
     git:
-      url: https://gitee.com/openharmony-sig/flutter_packages.git
-      ref: 35fb467533e174411a117b2a030c15d2a3a9687c
+      url: https://github.com/sskycd/flutter_packages-ohos.git
+      ref: 07f5d0b50e410d38ef49344176b3b9be898704c9
       path: packages/path_provider/path_provider_ohos
   path: ^1.9.1
   pub_semver: ^2.2.1
@@ -77,8 +77,8 @@ dependencies:
   package_info_plus: ^10.2.2
   url_launcher_ohos:
     git:
-      url: https://gitee.com/openharmony-sig/flutter_packages.git
-      ref: 35fb467533e174411a117b2a030c15d2a3a9687c
+      url: https://github.com/sskycd/flutter_packages-ohos.git
+      ref: 07f5d0b50e410d38ef49344176b3b9be898704c9
       path: packages/url_launcher/url_launcher_ohos
   file_selector: ^1.1.0
   image_picker_android: ^0.8.13+17
