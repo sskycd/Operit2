@@ -172,15 +172,28 @@ jobs:
         shell: pwsh
         run: python tools/build_scripts/check_build_environment.py --products app --github-runner
 
-      - name: Install repository-managed TypeScript
+      - name: Prepare build hook dependencies
         shell: pwsh
         run: |
+          python -m venv .venv
           npm install --prefix .ci-tools/typescript --no-audit --no-fund typescript@5.9.3
           $tsc = ".ci-tools/typescript/node_modules/.bin/tsc.cmd"
           if (-not (Test-Path -LiteralPath $tsc)) {
             throw "TypeScript compiler was not installed at $tsc"
           }
           & $tsc --version
+
+      - name: Enable Corepack pnpm
+        shell: pwsh
+        run: |
+          corepack enable pnpm
+          corepack pnpm --version
+
+      - name: Install built-in workflow plugin dependencies
+        shell: pwsh
+        working-directory: plugins/packages/buildin/workflow
+        run: |
+          corepack pnpm install --frozen-lockfile
 
       - name: Build and package Android app
         shell: pwsh
