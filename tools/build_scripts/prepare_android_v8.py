@@ -378,17 +378,19 @@ def find_host_clang():
 def libclang_major(library):
     """判断一个 libclang 候选所属的 LLVM 主版本，认不出返回 0。
 
-    Debian/Ubuntu 把版本放在文件名里（libclang-21.so.1），而 soname 主版本是 1，
-    因此不能只看 libclang.so.<n>；缺失时退回同级目录名 llvm-NN。
+    Debian/Ubuntu 把版本放在文件名里（libclang-21.so.1），真正的库是它，
+    而 libclang.so.1 只是指向它的链接、soname 主版本为 1。所以先认文件名里的
+    libclang-<n>，再看祖先目录名 llvm-<n>（目录本身通常叫 lib，要往上找）。
     """
     match = re.match(r"libclang-(\d+)\.so", library.name)
     if match:
         return int(match.group(1))
     if re.fullmatch(r"libclang\.so(\.\d+)*", library.name):
-        match = re.match(r"llvm-?(\d+)$", library.parent.name)
-        if match:
-            return int(match.group(1))
-        match = re.search(r"libclang\.so\.(\d+)$", library.name)
+        for ancestor in library.parents:
+            match = re.fullmatch(r"llvm-?(\d+)", ancestor.name)
+            if match:
+                return int(match.group(1))
+        match = re.match(r"libclang\.so\.(\d+)", library.name)
         if match:
             return int(match.group(1))
     return 0
