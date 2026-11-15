@@ -375,6 +375,25 @@ def find_host_clang():
     return None
 
 
+def libclang_major(library):
+    """判断一个 libclang 候选所属的 LLVM 主版本，认不出返回 0。
+
+    Debian/Ubuntu 把版本放在文件名里（libclang-21.so.1），而 soname 主版本是 1，
+    因此不能只看 libclang.so.<n>；缺失时退回同级目录名 llvm-NN。
+    """
+    match = re.match(r"libclang-(\d+)\.so", library.name)
+    if match:
+        return int(match.group(1))
+    if re.fullmatch(r"libclang\.so(\.\d+)*", library.name):
+        match = re.match(r"llvm-?(\d+)$", library.parent.name)
+        if match:
+            return int(match.group(1))
+        match = re.search(r"libclang\.so\.(\d+)$", library.name)
+        if match:
+            return int(match.group(1))
+    return 0
+
+
 def find_libclang():
     """Locate libclang 21.1+ for the source bindings generation."""
     if IS_WINDOWS:
@@ -383,7 +402,6 @@ def find_libclang():
         if not directory or not (directory / "libclang.dll").is_file():
             raise RuntimeError("Set OPERIT_LIBCLANG_DIR to the directory containing libclang.dll (21.1+)")
         return directory
-    pattern = "libclang.so*"
     if sys.platform == "darwin":
         llvm = find_host_clang()
         candidates = [llvm / "lib"]
@@ -393,10 +411,12 @@ def find_libclang():
         candidates += [Path("/usr/lib/x86_64-linux-gnu"), Path("/usr/lib64"), Path("/usr/lib")]
     libraries = []
     for directory in candidates:
-        libraries += sorted(directory.glob(pattern))
+        # 两种布局都要收：源码编译的 libclang.so.<major>，以及 Debian/Ubuntu
+        # 的 libclang-<major>.so.<soname>（真正的库在后者，前者只是链接）。
+        libraries += sorted(directory.glob("libclang.so*"))
+        libraries += sorted(directory.glob("libclang-[0-9]*.so*"))
     for library in libraries:
-        match = re.search(r"libclang\.so\.(\d+)", library.name)
-        if match and int(match.group(1)) >= 21:
+        if libclang_major(library) >= 21:
             return library.parent
     if sys.platform == "darwin" and libraries:
         return libraries[0].parent
