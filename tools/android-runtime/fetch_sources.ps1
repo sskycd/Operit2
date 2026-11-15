@@ -40,18 +40,45 @@ $items = @(
 
 foreach ($item in $items) {
     $archivePath = Join-Path $downloadsDir $item.Archive
-    Write-Host "Downloading $($item.Name)"
-    Invoke-WebRequest -Uri $item.Url -OutFile $archivePath
 
-    $actualSha256 = (Get-FileHash -Algorithm SHA256 -Path $archivePath).Hash.ToUpperInvariant()
-    if ($actualSha256 -ne $item.Sha256) {
-        throw "$($item.Archive) SHA256 mismatch: $actualSha256"
+    # 仓库内已有且校验通过的归档直接复用，避免依赖易抖动的上游源站。
+    $reuseExisting = $false
+    if (Test-Path -LiteralPath $archivePath) {
+        $existingSha256 = (Get-FileHash -Algorithm SHA256 -Path $archivePath).Hash.ToUpperInvariant()
+        if ($existingSha256 -eq $item.Sha256) {
+            Write-Host "Using verified archive $($item.Archive)"
+            $reuseExisting = $true
+        } else {
+            Write-Host "Ignoring $($item.Archive): SHA256 $existingSha256 does not match"
+        }
+    }
+
+    if (-not $reuseExisting) {
+        Write-Host "Downloading $($item.Name)"
+        # 上游偶发 5xx/超时时重试，退避递增。
+        $maxAttempts = 5
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                Invoke-WebRequest -Uri $item.Url -OutFile $archivePath
+                break
+            } catch {
+                if ($attempt -ge $maxAttempts) {
+                    throw "Failed to download $($item.Name) after $maxAttempts attempts: $_"
+                }
+                Write-Warning "Attempt $attempt/$maxAttempts for $($item.Name) failed: $_"
+                Start-Sleep -Seconds (10 * $attempt)
+            }
+        }
+
+        $actualSha256 = (Get-FileHash -Algorithm SHA256 -Path $archivePath).Hash.ToUpperInvariant()
+        if ($actualSha256 -ne $item.Sha256) {
+            throw "$($item.Archive) SHA256 mismatch: $actualSha256"
+        }
     }
 
     $extractPath = Join-Path $sourcesDir $item.Extracted
     if (Test-Path $extractPath) {
         Remove-Item -LiteralPath $extractPath -Recurse -Force
     }
-
     tar -xf $archivePath -C $sourcesDir
 }
