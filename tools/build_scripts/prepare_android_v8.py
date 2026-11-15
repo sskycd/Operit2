@@ -85,7 +85,12 @@ def run(command, **kwargs):
 
 
 def output(command):
-    return run(command, capture_output=True, text=True).stdout.strip()
+    # Windows 默认用 cp1252 解码子进程输出，一旦出现非 ASCII 字节就抛
+    # UnicodeDecodeError 并让 stdout 变成 None。显式 UTF-8 并对不可解码字节
+    # 做替换，保证跨平台一致。
+    result = run(command, capture_output=True, text=True,
+                 encoding="utf-8", errors="replace")
+    return (result.stdout or "").strip()
 
 
 def api_level():
@@ -343,7 +348,8 @@ def brew_prefix(formula):
         (str(p) for p in (Path("/opt/homebrew/bin/brew"), Path("/usr/local/bin/brew")) if p.is_file()), None)
     if not brew:
         return None
-    result = subprocess.run([brew, "--prefix", formula], capture_output=True, text=True)
+    result = subprocess.run([brew, "--prefix", formula], capture_output=True, text=True,
+                            encoding="utf-8", errors="replace")
     return Path(result.stdout.strip()) if result.returncode == 0 else None
 
 
