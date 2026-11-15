@@ -102,12 +102,17 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install V8 build dependencies
+      - name: Install build dependencies
         run: |
           sudo apt-get update
+          # 前半是 V8 源码构建所需工具。桌面原生依赖来自
+          # check_build_environment.py 在 Linux 上对 --products app 的检查：
+          # 它与 Android 打包无关，但属于上游门禁，这里选择满足而不是跳过。
           sudo apt-get install -y --no-install-recommends \
-            bison build-essential ca-certificates curl file flex gawk git \
-            gnupg gzip libc6-dev libssl-dev lsb-release ninja-build pkg-config \
+            bison build-essential ca-certificates clang cmake curl file flex gawk \
+            git gnupg gzip libayatana-appindicator3-dev libc6-dev \
+            libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev libgtk-3-dev \
+            libssl-dev libwebkit2gtk-4.1-dev lsb-release ninja-build pkg-config \
             python3 python3-venv software-properties-common tar unzip wget xz-utils zip
           wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
             | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null
@@ -134,6 +139,9 @@ jobs:
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
           targets: aarch64-linux-android
+
+      - name: Check build environment
+        run: python3 tools/build_scripts/check_build_environment.py --products app --github-runner
 
       - name: Restore Android signing material
         env:
